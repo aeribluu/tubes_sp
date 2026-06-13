@@ -4,9 +4,9 @@ SecurePass is an application for storing and managing account login information 
 
 **Group Member:**
 - **103012540009**
-    - Anything else that is not `deleteService()`, `selectionSort()`, and binarySearch() function. 
+    - Anything else that is not `deleteService()`, `selectionSort()`, and `binarySearch()` function. 
 - **103012540020**
-    - `deleteService()`, `selectionSort()`, and binarySearch() function.
+    - `deleteService()`, `selectionSort()`, and `binarySearch()` function.
 
 ---
 
