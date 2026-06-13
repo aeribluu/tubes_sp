@@ -296,7 +296,7 @@ func displayServiceDetail(service Service, show_pwd, show_pwd_strength, show_dat
 }
 
 func displayServiceTableStatus(page, page_max, rows_per_page, table_width int, display_sort string) {
-	left_text := fmt.Sprintf("PAGE: %02d/%02d", page+1, page_max)
+	left_text := fmt.Sprintf("PAGE: %03d/%03d", page+1, page_max)
 	mid_text := fmt.Sprintf("SORT: %v", display_sort)
 	right_text := fmt.Sprintf("%d ROWS PER PAGE", rows_per_page)
 	left_mid_text := fmt.Sprintf("%v    %v", left_text, mid_text)
