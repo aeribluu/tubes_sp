@@ -785,11 +785,9 @@ func viewServiceDetail(current_session *Session, mode string, service_no int, sh
 	} else {
 		option = "?"
 		for option == "?" {
-			printHeader(mode + " >> Service Detail")
+			printHeader(mode + fmt.Sprintf(" >> Service No. %03d Details", service_no))
 
-			fmt.Printf("Service No.: %03d\n\n", service_no)
 			displayServiceDetail(current_session.Vault.Services[service_idx], *show_pwd, *show_pwd, true)
-
 			fmt.Println()
 			if *show_pwd {
 				fmt.Printf("Hide Password [h], ")
