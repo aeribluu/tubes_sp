@@ -99,7 +99,7 @@ func displayPagedServices(current_session *Session, mode, sorted_by string) stri
 	sort_order = "Asc"
 	applySort(current_session, sorted_by, sort_order)
 
-	for option == "?" {
+	for option == "?" || option == "s" || option == "r" || option == "i" || option == "d" {
 		printHeader(mode)
 
 		if current_session.Vault == nil || current_session.Vault.Service_Count == 0 {
@@ -180,65 +180,91 @@ func displayPagedServices(current_session *Session, mode, sorted_by string) stri
 			displayServiceTableBorder(table_widths, show_pwd)
 
 			fmt.Printf("\n")
-			if page+1 < page_max {
-				fmt.Printf("Next [n], ")
-			}
-			if page > 0 {
-				fmt.Printf("Previous [p], ")
-			}
-			fmt.Printf("Search [s], Sort [o], Rows [r], Detail/Modify [i], Delete [d]")
-			if target != "" {
-				fmt.Printf(", Clear Search [c]")
-			}
-			if show_pwd {
-				fmt.Printf(", Hide Password [h]")
+
+			if option == "s" {
+				var ttarget string
+				fmt.Printf("Search: ")
+				fmt.Scanln(&ttarget)
+				if ttarget != "" {
+					target = ttarget
+				}
+				page = 0
+				option = "?"
+			} else if option == "r" {
+				var trows_per_page int
+				fmt.Printf(fmt.Sprintf("Rows per page (1 - %d, or -1 to cancel): ", SMAX))
+				fmt.Scanln(&trows_per_page)
+				if (trows_per_page >= 1 && trows_per_page <= SMAX) || trows_per_page == -1 {
+					if trows_per_page != -1 {
+						rows_per_page = trows_per_page
+					}
+					page = 0
+					option = "?"
+				}
+			} else if option == "i" {
+				fmt.Printf(fmt.Sprintf("View/Modify Service Number (1 - %d, or -1 to cancel): ", current_session.Vault.Service_Count))
+				fmt.Scanln(&service_no)
+				if (service_no >= 1 && service_no <= current_session.Vault.Service_Count) || service_no == -1 {
+					if service_no != -1 {
+						viewServiceDetail(current_session, mode, service_no, &show_pwd)
+						applySort(current_session, sorted_by, sort_order)
+					}
+					service_no = 0
+					option = "?"
+				}
+			} else if option == "d" {
+				fmt.Printf(fmt.Sprintf("Delete Service Number (1 - %d, or -1 to cancel): ", current_session.Vault.Service_Count))
+				fmt.Scanln(&service_no)
+				if (service_no >= 1 && service_no <= current_session.Vault.Service_Count) || service_no == -1 {
+					if service_no != -1 {
+						deleteService(current_session, mode, service_no)
+						applySort(current_session, sorted_by, sort_order)
+					}
+					page = 0
+					option = "?"
+				}
 			} else {
-				fmt.Printf(", Show Password [v]")
+				if page+1 < page_max {
+					fmt.Printf("Next [n], ")
+				}
+				if page > 0 {
+					fmt.Printf("Previous [p], ")
+				}
+				fmt.Printf("Search [s], Sort [o], Rows [r], Detail/Modify [i], Delete [d]")
+				if target != "" {
+					fmt.Printf(", Clear Search [c]")
+				}
+				if show_pwd {
+					fmt.Printf(", Hide Password [h]")
+				} else {
+					fmt.Printf(", Show Password [v]")
+				}
+				fmt.Printf(", Back [b]: ")
+				fmt.Scanln(&option)
+				option = toLower(option)
 			}
-			fmt.Printf(", Back [b]: ")
-			fmt.Scanln(&option)
 
 			switch option {
-			case "n", "N":
+			case "n":
 				if page+1 < page_max {
 					page = page + 1
 				}
 				option = "?"
-			case "p", "P":
+			case "p":
 				if page > 0 {
 					page = page - 1
 				}
 				option = "?"
-			case "s", "S":
-				fmt.Printf("Search: ")
-				fmt.Scanln(&target)
-				page = 0
-				option = "?"
-			case "c", "C":
+			case "c":
 				target = ""
 				page = 0
 				option = "?"
-			case "o", "O":
+			case "o":
 				chooseSortMenu(current_session, mode, &sorted_by, &sort_order, show_pwd)
 				page = 0
 				option = "?"
-			case "r", "R":
-				changeRowsPerPage(mode, &rows_per_page)
-				page = 0
-				option = "?"
-			case "i", "I":
-				fmt.Printf("Service Number: ")
-				fmt.Scanln(&service_no)
-				viewServiceDetail(current_session, mode, service_no, &show_pwd)
-				applySort(current_session, sorted_by, sort_order)
-				service_no = 0
-				option = "?"
-			case "d", "D":
-				deleteService(current_session, mode)
-				applySort(current_session, sorted_by, sort_order)
-				page = 0
-				option = "?"
-			case "v", "V":
+			case "s", "r", "i", "d":
+			case "v":
 				if !show_pwd {
 					if verifySessionPassword(current_session, mode) {
 						show_pwd = true
@@ -250,7 +276,7 @@ func displayPagedServices(current_session *Session, mode, sorted_by string) stri
 					}
 				}
 				option = "?"
-			case "h", "H":
+			case "h":
 				if show_pwd {
 					show_pwd = false
 					if sorted_by == "Password" {
@@ -260,7 +286,7 @@ func displayPagedServices(current_session *Session, mode, sorted_by string) stri
 					}
 				}
 				option = "?"
-			case "b", "B":
+			case "b":
 				if target != "" {
 					target = ""
 					page = 0
@@ -737,40 +763,21 @@ func getNextServiceID(current_session *Session) int {
 	return next_id
 }
 
-func deleteService(current_session *Session, mode string) {
-	var delete_no, delete_idx, last_idx int
-	var is_valid bool
+func deleteService(current_session *Session, mode string, delete_no int) {
+	var last_idx int
 
-	printHeader(mode + " >> Delete Service")
-	if current_session == nil || current_session.Vault == nil || current_session.Vault.Service_Count == 0 {
-		displayPause("No services saved yet.", "go back")
+	delete_service := current_session.Vault.Services[delete_no-1]
+	if isOptionConfirmed(mode+" >> Delete Service", fmt.Sprintf("Service No.: %03d\nService Name: %v\nLogin ID: %v\nProceed to delete this service?", delete_no, delete_service.Service_Name, delete_service.Login_ID)) {
+		last_idx = current_session.Vault.Service_Count - 1
+		current_session.Vault.Services[delete_no-1] = current_session.Vault.Services[last_idx]
+		current_session.Vault.Services[last_idx] = delete_service
+		current_session.Vault.Service_Count = current_session.Vault.Service_Count - 1
+
+		printHeader(mode + " >> Delete Service")
+		displayPause("Service deleted successfully.", "go back")
 	} else {
-		fmt.Printf("Delete No.: ")
-		fmt.Scanln(&delete_no)
-		delete_idx = delete_no - 1
-		is_valid = delete_idx >= 0 && delete_idx < current_session.Vault.Service_Count
-
-		if !is_valid {
-			printHeader(mode + " >> Delete Service")
-			displayPause("Error: Invalid service number.", "go back")
-		} else {
-			printHeader(mode + " >> Delete Service")
-			fmt.Printf("No.: %03d\n", delete_no)
-			fmt.Printf("Service Name: %v\n", current_session.Vault.Services[delete_idx].Service_Name)
-			fmt.Printf("Login ID.: %v\n\n", current_session.Vault.Services[delete_idx].Login_ID)
-
-			if isOptionConfirmed(mode+" >> Delete Service", "Proceed to delete this service?") {
-				last_idx = current_session.Vault.Service_Count - 1
-				current_session.Vault.Services[delete_idx] = current_session.Vault.Services[last_idx]
-				current_session.Vault.Service_Count = current_session.Vault.Service_Count - 1
-
-				printHeader(mode + " >> Delete Service")
-				displayPause("Service deleted successfully.", "go back")
-			} else {
-				printHeader(mode + " >> Delete Service")
-				displayPause("Deletion cancelled.", "go back")
-			}
-		}
+		printHeader(mode + " >> Delete Service")
+		displayPause("Deletion cancelled.", "go back")
 	}
 }
 
